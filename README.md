@@ -15,7 +15,7 @@ The Dataset Merger is a Python application built with PyQt5 that facilitates the
 To install the Dataset Merger, clone the repository and install the required dependencies:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/dtungpka/visl-dataset-merger
 cd dataset-merger
 pip install -r requirements.txt
 ```
