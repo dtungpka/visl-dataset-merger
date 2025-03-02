@@ -11,7 +11,7 @@ class MapProcessor:
     def process_maps(self, program_folders):
         """Process maps.txt from all program folders"""
         self.logger.log_info("Starting map processing")
-        folder_maps = {}
+        self.folder_maps = {}  # Store folder maps as instance variable
         
         # First, load and normalize all maps
         for folder in program_folders:
@@ -26,13 +26,13 @@ class MapProcessor:
             output_folder = os.path.join(folder, 'output')
             output_subfolders = os.listdir(output_folder) if os.path.exists(output_folder) else []
             
-            folder_maps[folder] = self._load_map_file(map_file_path, output_subfolders)
+            self.folder_maps[folder] = self._load_map_file(map_file_path, output_subfolders)
             
         # Identify and collect conflicts
-        self._identify_conflicts(folder_maps)
+        self._identify_conflicts(self.folder_maps)
         
         return {
-            "maps": folder_maps,
+            "maps": self.folder_maps,
             "conflicts": self.conflicts
         }
     
@@ -107,41 +107,167 @@ class MapProcessor:
         return self.conflicts
     
     def resolve_conflict(self, conflict_type, conflict_key, resolution_action, resolution_data):
-        """Resolve a conflict with the specified action"""
+        """
+        Resolve a conflict with the specified action
+        
+        Args:
+            conflict_type: 'label' or 'id' indicating the type of conflict
+            conflict_key: The conflicting key (label or ID)
+            resolution_action: 'keep_main', 'new_entry', or 'delete'
+            resolution_data: Additional data for resolution (e.g. which entry to keep)
+        
+        Returns:
+            bool: True if conflict resolved successfully
+        """
         self.logger.log_info(f"Resolving conflict for {conflict_type} '{conflict_key}' with action {resolution_action}")
         
-        # Resolution actions: keep_main, new_entry, delete
+        if conflict_key not in self.conflicts:
+            self.logger.log_error(f"Conflict {conflict_key} not found")
+            return False
+            
+        conflict_entries = self.conflicts[conflict_key]
+        
+        # Resolution actions
         if resolution_action == "keep_main":
-            # Keep one entry as main, update others
-            pass
+            # Keep one entry as main, remove others from conflicts
+            main_entry = resolution_data.get('main_entry')
+            if not main_entry or not isinstance(main_entry, dict):
+                self.logger.log_error("Invalid main entry data for keep_main action")
+                return False
+                
+            # Record which entry we're keeping
+            self.logger.log_info(f"Keeping entry from folder {main_entry.get('folder')} as main")
+            
+            # Remove this conflict from the list
+            del self.conflicts[conflict_key]
+            
         elif resolution_action == "new_entry":
             # Create a new entry for the conflicting item
-            pass
+            new_id = resolution_data.get('new_id')
+            if not new_id:
+                self.logger.log_error("No new ID provided for new_entry action")
+                return False
+                
+            # Update the entry with new ID
+            folder = resolution_data.get('folder')
+            if not folder:
+                self.logger.log_error("No folder specified for new_entry action")
+                return False
+                
+            # Update the folder maps (needs to be passed in separately or stored in the class)
+            if hasattr(self, 'folder_maps') and folder in self.folder_maps:
+                if conflict_type == 'label':
+                    # Find the entry with this label and update its ID
+                    for entry in conflict_entries:
+                        if entry.get('folder') == folder:
+                            old_id = entry.get('id')
+                            if old_id in self.folder_maps[folder]:
+                                label = self.folder_maps[folder][old_id]
+                                del self.folder_maps[folder][old_id]
+                                self.folder_maps[folder][new_id] = label
+                                self.logger.log_info(f"Updated ID from {old_id} to {new_id} for label {label}")
+                elif conflict_type == 'id':
+                    # This is an ID conflict, so it's the same ID with different labels
+                    # Create new ID for this folder's mapping
+                    old_label = resolution_data.get('label')
+                    if old_label and conflict_key in self.folder_maps[folder]:
+                        self.folder_maps[folder][new_id] = old_label
+                        del self.folder_maps[folder][conflict_key]
+                        self.logger.log_info(f"Created new ID {new_id} for label {old_label}")
+            
+            # Remove this conflict from the list
+            del self.conflicts[conflict_key]
+            
         elif resolution_action == "delete":
             # Delete the conflicting entry
-            pass
+            folder = resolution_data.get('folder')
+            if not folder:
+                self.logger.log_error("No folder specified for delete action")
+                return False
+                
+            # Find and remove entry from folder maps
+            if hasattr(self, 'folder_maps') and folder in self.folder_maps:
+                if conflict_type == 'label':
+                    for entry in conflict_entries:
+                        if entry.get('folder') == folder:
+                            entry_id = entry.get('id')
+                            if entry_id in self.folder_maps[folder]:
+                                del self.folder_maps[folder][entry_id]
+                                self.logger.log_info(f"Deleted entry {entry_id} => {conflict_key} from folder {folder}")
+                elif conflict_type == 'id':
+                    if conflict_key in self.folder_maps[folder]:
+                        del self.folder_maps[folder][conflict_key]
+                        self.logger.log_info(f"Deleted entry {conflict_key} from folder {folder}")
+            
+            # If all conflicts for this key are resolved, remove the conflict
+            remaining_conflicts = [entry for entry in conflict_entries 
+                                  if entry.get('folder') != folder]
+            
+            if not remaining_conflicts:
+                del self.conflicts[conflict_key]
+            else:
+                self.conflicts[conflict_key] = remaining_conflicts
+        
+        else:
+            self.logger.log_error(f"Unknown resolution action: {resolution_action}")
+            return False
             
         self.logger.log_conflict_resolution(f"{conflict_type} '{conflict_key}': {resolution_action}")
-        
         return True
     
-    def generate_master_map(self, folder_maps, resolved_conflicts):
+    def generate_master_map(self, resolved_conflicts=None):
         """Generate a master map from all folder maps, applying conflict resolutions"""
         master_map = {}
+        resolved_conflicts = resolved_conflicts or []
         
-        # Apply conflict resolutions
-        for folder, maps in folder_maps.items():
-            for entry_id, label in maps.items():
-                # Check if this entry was part of a resolved conflict
-                # If not, add it to master map
-                if entry_id not in resolved_conflicts and label not in resolved_conflicts:
-                    master_map[entry_id] = label
+        # Track which entries have been added to master map
+        processed_entries = set()
         
-        # Add conflict resolutions to master map
+        # Apply conflict resolutions first
         for resolution in resolved_conflicts:
             if resolution['action'] == 'keep_main':
                 master_map[resolution['id']] = resolution['label']
+                processed_entries.add(resolution['id'])
+                processed_entries.add(resolution['label'])
             elif resolution['action'] == 'new_entry':
                 master_map[resolution['new_id']] = resolution['label']
+                processed_entries.add(resolution['new_id'])
+                processed_entries.add(resolution['label'])
         
+        # Add non-conflicting entries from folder maps
+        for folder, maps in self.folder_maps.items():
+            for entry_id, label in maps.items():
+                # Skip entries that were part of resolved conflicts
+                if entry_id in processed_entries or label in processed_entries:
+                    continue
+                    
+                # Handle any remaining conflicts with a simple strategy
+                if entry_id in master_map and master_map[entry_id] != label:
+                    # ID exists with different label - skip
+                    self.logger.log_warning(f"Skipping conflicting entry: {entry_id} => {label}")
+                    continue
+                    
+                # Check if this label exists with different ID
+                reverse_map = {v: k for k, v in master_map.items()}
+                if label in reverse_map and reverse_map[label] != entry_id:
+                    # Label exists with different ID - skip
+                    self.logger.log_warning(f"Skipping duplicate label: {entry_id} => {label}")
+                    continue
+                    
+                # No conflicts, add to master map
+                master_map[entry_id] = label
+        
+        self.master_map = master_map
         return master_map
+
+    def has_unresolved_conflicts(self):
+        """Check if there are any unresolved conflicts"""
+        return len(self.conflicts) > 0
+
+    def get_conflict_count(self):
+        """Get the number of unresolved conflicts"""
+        return len(self.conflicts)
+
+    def get_conflicts(self):
+        """Get all current conflicts"""
+        return self.conflicts

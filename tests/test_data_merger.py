@@ -1,39 +1,91 @@
 import unittest
+import os
+import shutil
+import tempfile
 from src.controllers.data_merger import DataMerger
-from src.models.program_folder import ProgramFolder
-from src.models.map_entry import MapEntry
 
 class TestDataMerger(unittest.TestCase):
 
     def setUp(self):
+        # Create a temporary directory for testing
+        self.test_dir = tempfile.mkdtemp()
+        
+        # Create test folder structure
         self.program_folders = [
-            ProgramFolder(path='folder1', maps=[MapEntry(id='A1', label='nha_lau')], output_data=['A1P1']),
-            ProgramFolder(path='folder2', maps=[MapEntry(id='A2', label='nha_may_ngoi')], output_data=['A2P1']),
-            ProgramFolder(path='folder3', maps=[MapEntry(id='A1', label='nha_lau')], output_data=['A1P2']),
+            os.path.join(self.test_dir, 'folder1'),
+            os.path.join(self.test_dir, 'folder2'),
+            os.path.join(self.test_dir, 'folder3')
         ]
-        self.master_folder = 'master_folder'
-        self.data_merger = DataMerger(self.program_folders, self.master_folder)
+        
+        self.master_folder = os.path.join(self.test_dir, 'master_folder')
+        os.makedirs(self.master_folder, exist_ok=True)
+        
+        # Create basic structure in each program folder
+        for folder in self.program_folders:
+            os.makedirs(os.path.join(folder, 'output'), exist_ok=True)
+            os.makedirs(os.path.join(folder, 'config'), exist_ok=True)
+            
+            # Create maps.txt file
+            with open(os.path.join(folder, 'config', 'maps.txt'), 'w') as f:
+                if 'folder1' in folder:
+                    f.write('A1 => nha_lau\n')
+                elif 'folder2' in folder:
+                    f.write('A2 => nha_may_ngoi\n')
+                elif 'folder3' in folder:
+                    f.write('A1 => nha_lau\n')
+                    
+            # Create sample output folders
+            if 'folder1' in folder:
+                os.makedirs(os.path.join(folder, 'output', 'A1P1'), exist_ok=True)
+            elif 'folder2' in folder:
+                os.makedirs(os.path.join(folder, 'output', 'A2P1'), exist_ok=True)
+            elif 'folder3' in folder:
+                os.makedirs(os.path.join(folder, 'output', 'A1P2'), exist_ok=True)
+        
+        # Initialize DataMerger
+        self.data_merger = DataMerger()
+        
+        # Create a sample master map
+        self.master_map = {
+            'A1': 'nha_lau',
+            'A2': 'nha_may_ngoi'
+        }
 
-    def test_merge_data_no_conflicts(self):
-        self.data_merger.merge_data()
-        self.assertEqual(len(self.data_merger.master_maps), 2)
-        self.assertIn('nha_lau', self.data_merger.master_maps)
-        self.assertIn('nha_may_ngoi', self.data_merger.master_maps)
+    def tearDown(self):
+        # Clean up temporary directory
+        shutil.rmtree(self.test_dir)
 
-    def test_merge_data_with_conflicts(self):
-        self.program_folders[0].maps.append(MapEntry(id='A1', label='nha_lau'))
-        self.data_merger.merge_data()
-        self.assertEqual(len(self.data_merger.master_maps), 2)
-        self.assertIn('nha_lau', self.data_merger.master_maps)
-        self.assertEqual(self.data_merger.master_maps['nha_lau'], 'A1')
+    def test_setup(self):
+        """Test if setup correctly initializes the merger"""
+        result = self.data_merger.setup(self.program_folders, self.master_folder, self.master_map)
+        self.assertTrue(result)
+        self.assertEqual(self.data_merger.program_folders, self.program_folders)
+        self.assertEqual(self.data_merger.master_output_folder, self.master_folder)
+        self.assertEqual(self.data_merger.master_map, self.master_map)
+        
+        # Check if master maps.txt was created
+        self.assertTrue(os.path.exists(os.path.join(self.master_folder, 'maps.txt')))
 
-    def test_rename_subfolders(self):
-        self.data_merger.rename_subfolders()
-        self.assertEqual(self.data_merger.renamed_subfolders, ['folder1/A1P1', 'folder2/A2P1', 'folder3/A1P2'])
-
-    def test_log_changes(self):
-        self.data_merger.log_changes('Test log entry')
-        self.assertIn('Test log entry', self.data_merger.change_log)
+    def test_merge(self):
+        """Test basic merge functionality"""
+        self.data_merger.setup(self.program_folders, self.master_folder, self.master_map)
+        
+        # Create a simple progress callback for testing
+        def progress_callback(value):
+            self.assertGreaterEqual(value, 0)
+            self.assertLessEqual(value, 100)
+            
+        result = self.data_merger.merge(progress_callback)
+        self.assertTrue(result)
+        
+        # Check if change log has entries
+        self.assertGreater(len(self.data_merger.change_log), 0)
+        
+        # Check if output folders were created in master folder
+        master_output_dir = os.path.join(self.master_folder, 'output')
+        self.assertTrue(os.path.exists(master_output_dir))
+        # There should be at least one subfolder
+        self.assertGreater(len(os.listdir(master_output_dir)), 0)
 
 if __name__ == '__main__':
     unittest.main()

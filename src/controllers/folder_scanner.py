@@ -15,8 +15,8 @@ class FolderScanner:
         try:
             for root, dirs, files in os.walk(root_directory):
                 # Check if this is a program folder
-                if 'maps.txt' in files and 'output' in dirs:
-                    maps_path = os.path.join(root, 'maps.txt')
+                if 'output' in dirs and os.path.exists(os.path.join(root,'config', 'maps.txt')):
+                    maps_path = os.path.join(root, 'config', 'maps.txt')
                     output_path = os.path.join(root, 'output')
                     
                     # Verify output folder has content in AnPm format

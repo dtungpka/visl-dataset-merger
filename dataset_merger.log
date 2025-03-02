@@ -1,0 +1,16 @@
+2025-03-02 12:31:03,812 - INFO - Wrote master map to C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\master_folder\maps.txt
+2025-03-02 12:31:03,812 - INFO - Processing folder: C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder1
+2025-03-02 12:31:03,823 - INFO - Copied folder from C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder1\output\A1P1 to C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\master_folder\output\A1P1
+2025-03-02 12:31:03,824 - INFO - Processing folder: C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder2
+2025-03-02 12:31:03,832 - INFO - Copied folder from C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder2\output\A2P1 to C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\master_folder\output\A2P1
+2025-03-02 12:31:03,919 - INFO - Processing folder: C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder3
+2025-03-02 12:31:03,922 - INFO - Copied folder from C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\folder3\output\A1P2 to C:\Users\duong\AppData\Local\Temp\tmp4pa7t6de\master_folder\output\A1P2
+2025-03-02 12:31:03,922 - INFO - Data merging process completed successfully.
+2025-03-02 12:31:03,939 - INFO - Wrote master map to C:\Users\duong\AppData\Local\Temp\tmpyxfp_ck5\master_folder\maps.txt
+2025-03-02 13:32:15,149 - INFO - Scanning for program folders in: C:/Users/duong/Desktop/CH_14_1/ViSLCapture
+2025-03-02 13:32:18,560 - INFO - Scanning directory: C:/Users/duong/Desktop/CH_14_1/ViSLCapture
+2025-03-02 13:36:38,365 - INFO - Scanning directory: C:\Users\duong\AppData\Local\Temp\tmpyypo0oj8
+2025-03-02 13:36:38,378 - INFO - Scanning directory: C:\Users\duong\AppData\Local\Temp\tmpf6qu0lq9
+2025-03-02 13:36:38,389 - INFO - Removing empty folder: C:\Users\duong\AppData\Local\Temp\tmppxr6z66v\program2
+2025-03-02 13:36:38,399 - INFO - Scanning directory: C:\Users\duong\AppData\Local\Temp\tmpr_qhlr7g
+2025-03-02 13:36:38,400 - INFO - Found program folder: C:\Users\duong\AppData\Local\Temp\tmpr_qhlr7g\program1
